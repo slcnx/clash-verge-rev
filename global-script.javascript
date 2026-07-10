@@ -53,13 +53,30 @@ function main(config) {
   });
 
 
+// =========================================
+  // 3. 配置自定义额外路由规则 (加入安全防报错机制)
   // =========================================
-  // 3. 配置自定义额外路由规则
-  // =========================================
+  
+  // 3.1 定义你最想用的目标策略组名称
+  const idealTarget = "♻️ 自动选择";
+  
+  // 3.2 检查当前订阅的 proxy-groups 里是否存在这个名称
+  let finalTarget = "DIRECT"; // 默认安全降级方案：直连 (或者改为 "GLOBAL")
+  
+  if (config['proxy-groups'] && config['proxy-groups'].some(g => g.name === idealTarget)) {
+    // 如果找到了，就用你的理想目标
+    finalTarget = idealTarget; 
+  } else if (config['proxy-groups'] && config['proxy-groups'].some(g => g.name === "Proxy")) {
+    // (可选) 备用选项：如果没有自动选择，但有 Proxy，就用 Proxy
+    finalTarget = "Proxy";
+  } else if (config['proxy-groups'] && config['proxy-groups'].length > 0) {
+    // (可选) 终极备用：如果连 Proxy 都没有，就随便抓取当前机场的第一个策略组
+    finalTarget = config['proxy-groups'][0].name; 
+  }
+
+  // 3.3 注入规则时，使用动态计算出来的 finalTarget
   const myExtraRules = [
-    // ⚠️ 注意：这里的 "♻️ 自动选择" 必须是你当前机场订阅里确实存在的一个策略组名字
-    // 如果原配置里没有这个 emoji 或者名字有一字之差，内核会报错
-    "DOMAIN-SUFFIX,ip.look,♻️ 自动选择"
+    `DOMAIN-SUFFIX,ip.look,${finalTarget}`
   ];
 
   if (!config.rules) config.rules = [];
