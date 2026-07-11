@@ -84,5 +84,28 @@ function main(config) {
   // 将自定义规则插到系统原有规则的最前面
   config.rules = myExtraRules.concat(config.rules);
 
+
+ // 没有 Sniffer 时：ProxyBridge 传过来 IP，Clash 只能匹配到“IP 规则”。如果该 IP 不在规则列表里，或者触发了错误的 GeoIP 规则，连接就会挂掉（i/o timeout）。
+ // 有 Sniffer 时：
+    // 流量敲门：ProxyBridge 说：“这是 IP 216.239.34.223 的数据。”
+    // 嗅探介入：Clash：“等等，我拆开看看。”（嗅探器瞬间捕获 gemini.google.com）。
+    // 强制更正：Clash：“原来是 Gemini！force-domain 规定必须听域名的，立即重新查找规则。”
+    // 精准分流：Clash：“找到了，域名命中 DomainKeyword(google)，走美国代理节点。”
+    // 完美登录：连接瞬间变绿。
+    
+  config.sniffer = {
+    enable: true,           // 1. 全局开关
+    "force-domain": ["+"],  // 2. 强制覆盖策略
+    sniff: {                // 3. 嗅探协议配置
+      TLS: {
+        ports: [443, 8443]  // 针对 HTTPS 的嗅探
+      },
+      HTTP: {
+        ports: [80]         // 针对 HTTP 的嗅探
+      }
+    }
+  };
+
+
   return config;
 }
