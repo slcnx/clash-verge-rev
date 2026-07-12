@@ -1,3 +1,13 @@
+  // =========================================================
+  // 1. 在这里“无脑粘贴”你的原始节点列表
+  // 格式保持原样： - { name: 'xxx', server: xxx ... }
+  // =========================================================
+  const RAW_NODES = `
+ 
+      `;
+
+
+
 function main(config) {
   // =========================================
   // 1. 端口与节点配置区 (未来加端口，只改这里即可)
@@ -76,7 +86,10 @@ function main(config) {
 
   // 3.3 注入规则时，使用动态计算出来的 finalTarget
   const myExtraRules = [
-    `DOMAIN-SUFFIX,ip.look,${finalTarget}`
+    `DOMAIN-SUFFIX,ip.look,${finalTarget}`,
+    `DOMAIN-SUFFIX,getwhisky.app,${finalTarget}`,
+    `DOMAIN-SUFFIX,trancy.org,${finalTarget}`,
+    `DOMAIN-SUFFIX,gstatic.com,💡 Gemini + Google`
   ];
 
   if (!config.rules) config.rules = [];
@@ -92,7 +105,7 @@ function main(config) {
     // 强制更正：Clash：“原来是 Gemini！force-domain 规定必须听域名的，立即重新查找规则。”
     // 精准分流：Clash：“找到了，域名命中 DomainKeyword(google)，走美国代理节点。”
     // 完美登录：连接瞬间变绿。
-    
+
   config.sniffer = {
     enable: true,           // 1. 全局开关
     "force-domain": ["+"],  // 2. 强制覆盖策略
@@ -106,6 +119,116 @@ function main(config) {
     }
   };
 
+ 
+
+  // =========================================================
+  // 2. 自定义微型 YAML 单行解析器 (专门解析带大括号和横线的文本)
+  // =========================================================
+  function parseClashScanner(rawStr) {
+    const nodes = [];
+    const lines = rawStr.split('\n');
+    
+    function parseDict(str) {
+      let obj = {};
+      let i = 0;
+      while (i < str.length) {
+        // 跳过前导空白符
+        while (str[i] === ' ' || str[i] === '\n' || str[i] === '\r') i++;
+        if (i >= str.length) break;
+        
+        // 提取键名 (直到遇到第一个冒号)
+        let colonIdx = str.indexOf(':', i);
+        if (colonIdx === -1) break;
+        let currentKey = str.substring(i, colonIdx).trim();
+        i = colonIdx + 1;
+        
+        // 提取键值
+        while (str[i] === ' ' || str[i] === '\n' || str[i] === '\r') i++;
+        let valStart = i;
+        let inQuote = false;
+        let quoteChar = '';
+        let braceCount = 0;
+        
+        // 状态机游标寻找值的边界（逗号或者结尾）
+        while (i < str.length) {
+          let char = str[i];
+          if (char === "'" || char === '"') {
+            if (!inQuote) { inQuote = true; quoteChar = char; }
+            else if (quoteChar === char) { inQuote = false; }
+          } else if (!inQuote) {
+            if (char === '{') braceCount++;
+            else if (char === '}') braceCount--;
+            else if (char === ',' && braceCount === 0) break; // 找到同层级的逗号
+          }
+          i++;
+        }
+        
+        let valStr = str.substring(valStart, i).trim();
+        
+        // 类型分发转换
+        if (valStr.startsWith('{') && valStr.endsWith('}')) {
+          // 递归解析嵌套对象 (如 reality-opts: { ... })
+          obj[currentKey] = parseDict(valStr.substring(1, valStr.length - 1));
+        } else {
+          // 剥离单双引号
+          if ((valStr.startsWith("'") && valStr.endsWith("'")) || 
+              (valStr.startsWith('"') && valStr.endsWith('"'))) {
+            valStr = valStr.substring(1, valStr.length - 1);
+          }
+          // 类型判定
+          if (valStr === 'true') obj[currentKey] = true;
+          else if (valStr === 'false') obj[currentKey] = false;
+          else if (/^\d+$/.test(valStr)) obj[currentKey] = Number(valStr); // 纯数字
+          else obj[currentKey] = valStr; // 保留为字符串 (IP, 域名, UUID)
+        }
+        i++; // 跳过刚才找到的逗号
+      }
+      return obj;
+    }
+
+    // 逐行切分文本，去掉 "- {"
+    for (let line of lines) {
+      line = line.trim();
+      if (!line.startsWith('- {') || !line.endsWith('}')) continue;
+      // 提取 {} 内部的核心字典内容交由扫描器处理
+      let content = line.substring(3, line.length - 1).trim();
+      nodes.push(parseDict(content));
+    }
+    
+    return nodes;
+  }
+
+  // =========================================================
+  // 3. 执行解析并追加
+  // =========================================================
+  const newNodes = parseClashScanner(RAW_NODES);
+  console.log(newNodes,'--------->')
+  if (newNodes.length === 0) return config;
+// 💥 【核心修改点 1】在这里直接修改节点实体本身的名字！
+  newNodes.forEach(node => {
+    node.name = `New-${node.name}`; 
+  });
+
+  // 将改好名字的节点实体注入到全局 proxies 列表
+  config.proxies = config.proxies || [];
+  config.proxies.push(...newNodes);
+
+  // 提取解析出的节点名字（因为上面实体名字已经改了，这里照常提取即可）
+  const newNodeNames = newNodes.map(n => n.name);
+
+  // 💥 【核心修改点 2】设置你要追加的代理组名字
+  const targetGroups = ["🔰 节点选择"];
+
+  if (config["proxy-groups"]) {
+    config["proxy-groups"].forEach(group => {
+      // 如果当前策略组的名字包含在我们想要注入的目标列表里
+      if (targetGroups.includes(group.name)) {
+        group.proxies = group.proxies || [];
+        // 直接把名字怼进去
+        group.proxies.push(...newNodeNames);
+      }
+    });
+  }
 
   return config;
 }
