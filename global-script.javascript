@@ -4,7 +4,7 @@
 // =========================================================
 const RAW_NODES = `
 
-    `;
+`;
 
 
 
@@ -217,7 +217,7 @@ function main(config) {
   const newNodeNames = newNodes.map(n => n.name);
 
   // 💥 【核心修改点 2】设置你要追加的代理组名字
-  const targetGroups = ["🔰 节点选择"];
+  const targetGroups = ["🔰 节点选择",'🐟 漏网之鱼'];
 
   if (config["proxy-groups"]) {
     config["proxy-groups"].forEach(group => {
