@@ -3,7 +3,7 @@
 // 格式保持原样： - { name: 'xxx', server: xxx ... }
 // =========================================================
 const RAW_NODES = `
-
+   
 `;
 
 
@@ -68,7 +68,7 @@ function main(config) {
   // =========================================
   
   // 3.1 定义你最想用的目标策略组名称
-  const idealTarget = "♻️ 自动选择";
+  const idealTarget = "🔰 节点选择";
   
   // 3.2 检查当前订阅的 proxy-groups 里是否存在这个名称
   let finalTarget = "DIRECT"; // 默认安全降级方案：直连 (或者改为 "GLOBAL")
@@ -89,7 +89,9 @@ function main(config) {
     `DOMAIN-SUFFIX,ip.look,${finalTarget}`,
     `DOMAIN-SUFFIX,getwhisky.app,${finalTarget}`,
     `DOMAIN-SUFFIX,trancy.org,${finalTarget}`,
-    `DOMAIN-SUFFIX,gstatic.com,💡 Gemini + Google`
+    `DOMAIN-SUFFIX,gstatic.com,💡 Gemini + Google`,
+    `DOMAIN-SUFFIX,docker.io,${finalTarget}`,
+    `DOMAIN-SUFFIX,docker.com,${finalTarget}`,
   ];
 
   if (!config.rules) config.rules = [];
